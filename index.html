@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Simple Pong</title>
+<style>
+  body { margin:0; background:black; display:flex; justify-content:center; align-items:center; height:100vh; }
+  canvas { border:2px solid white; }
+</style>
+</head>
+<body>
+
+<canvas id="game" width="800" height="500"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// PADDLES
+const paddleWidth = 15;
+const paddleHeight = 100;
+
+let leftPaddle = { x: 20, y: canvas.height/2 - paddleHeight/2, speed: 6 };
+let rightPaddle = { x: canvas.width - 35, y: canvas.height/2 - paddleHeight/2, speed: 4 };
+
+// BALL
+let ball = {
+    x: canvas.width/2,
+    y: canvas.height/2,
+    size: 12,
+    speedX: 4,
+    speedY: 3,
+    speedIncrease: 0.002
+};
+
+// SCORES
+let leftScore = 0;
+let rightScore = 0;
+
+// INPUT
+let keys = {};
+window.addEventListener("keydown", e => keys[e.code] = true);
+window.addEventListener("keyup", e => keys[e.code] = false);
+
+// DRAW EVERYTHING
+function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Middle red line
+    ctx.strokeStyle = "red";
+    ctx.beginPath();
+    ctx.moveTo(canvas.width/2, 0);
+    ctx.lineTo(canvas.width/2, canvas.height);
+    ctx.stroke();
+
+    // Left paddle
+    ctx.fillStyle = "white";
+    ctx.fillRect(leftPaddle.x, leftPaddle.y, paddleWidth, paddleHeight);
+
+    // Right paddle
+    ctx.fillRect(rightPaddle.x, rightPaddle.y, paddleWidth, paddleHeight);
+
+    // Ball
+    ctx.fillStyle = "blue";
+    ctx.fillRect(ball.x, ball.y, ball.size, ball.size);
+
+    // Score
+    ctx.fillStyle = "white";
+    ctx.font = "30px Arial";
+    ctx.fillText(leftScore, canvas.width/2 - 60, 40);
+    ctx.fillText(rightScore, canvas.width/2 + 40, 40);
+}
+
+// UPDATE GAME LOGIC
+function update() {
+    // Left paddle movement (W = up, D = down)
+    if (keys["KeyW"]) leftPaddle.y -= leftPaddle.speed;
+    if (keys["KeyD"]) leftPaddle.y += leftPaddle.speed;
+
+    // Keep left paddle on screen
+    leftPaddle.y = Math.max(0, Math.min(canvas.height - paddleHeight, leftPaddle.y));
+
+    // Right paddle AI (follows ball)
+    if (ball.y < rightPaddle.y + paddleHeight/2) rightPaddle.y -= rightPaddle.speed;
+    if (ball.y > rightPaddle.y + paddleHeight/2) rightPaddle.y += rightPaddle.speed;
+
+    // Keep right paddle on screen
+    rightPaddle.y = Math.max(0, Math.min(canvas.height - paddleHeight, rightPaddle.y));
+
+    // Move ball
+    ball.x += ball.speedX;
+    ball.y += ball.speedY;
+
+    // Ball collision with top/bottom
+    if (ball.y <= 0 || ball.y + ball.size >= canvas.height) {
+        ball.speedY *= -1;
+    }
+
+    // Ball collision with left paddle
+    if (ball.x <= leftPaddle.x + paddleWidth &&
+        ball.y + ball.size >= leftPaddle.y &&
+        ball.y <= leftPaddle.y + paddleHeight) {
+        ball.speedX *= -1;
+        leftScore++;
+        ball.speedX *= 1.05; // speed up
+        ball.speedY *= 1.05;
+    }
+
+    // Ball collision with right paddle
+    if (ball.x + ball.size >= rightPaddle.x &&
+        ball.y + ball.size >= rightPaddle.y &&
+        ball.y <= rightPaddle.y + paddleHeight) {
+        ball.speedX *= -1;
+        rightScore++;
+        ball.speedX *= 1.05; // speed up
+        ball.speedY *= 1.05;
+    }
+
+    // Ball goes off screen (reset)
+    if (ball.x < 0 || ball.x > canvas.width) {
+        ball.x = canvas.width/2;
+        ball.y = canvas.height/2;
+        ball.speedX = 4 * (Math.random() > 0.5 ? 1 : -1);
+        ball.speedY = 3 * (Math.random() > 0.5 ? 1 : -1);
+    }
+}
+
+// GAME LOOP
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
