@@ -199,16 +199,21 @@ function update() {
 
     leftPaddle.y = Math.max(0, Math.min(canvas.height - paddleHeight, leftPaddle.y));
 
-    // AI movement with hit/miss chance
+    // --- AI movement with smooth hit/miss behavior ---
     let aiCenter = rightPaddle.y + paddleHeight / 2;
 
+    // Decide target: real ball (hit) or offset (miss)
+    let targetY;
     if (Math.random() < hitChance) {
-        if (ball.y < aiCenter) rightPaddle.y -= rightPaddle.speed;
-        if (ball.y > aiCenter) rightPaddle.y += rightPaddle.speed;
+        // Correct target: ball center
+        targetY = ball.y;
     } else {
-        if (ball.y < aiCenter) rightPaddle.y += rightPaddle.speed;
-        if (ball.y > aiCenter) rightPaddle.y -= rightPaddle.speed;
+        // Wrong target: ball plus offset so it "aims wrong"
+        targetY = ball.y + (ball.y < aiCenter ? -150 : 150);
     }
+
+    if (targetY < aiCenter) rightPaddle.y -= rightPaddle.speed;
+    if (targetY > aiCenter) rightPaddle.y += rightPaddle.speed;
 
     rightPaddle.y = Math.max(0, Math.min(canvas.height - paddleHeight, rightPaddle.y));
 
