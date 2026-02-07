@@ -58,6 +58,9 @@ let ball = {
     baseSpeedY: 3
 };
 
+// TRAIL SYSTEM
+let trail = [];
+
 // SCORES
 let leftScore = 0;
 let rightScore = 0;
@@ -66,8 +69,7 @@ let rightScore = 0;
 let gameOver = false;
 
 // DIFFICULTY RATIOS
-let hitChance = 0.55;   // default normal
-let missChance = 0.45;
+let hitChance = 0.55;
 
 // FLASH SYSTEM
 let leftFlash = null;
@@ -98,21 +100,17 @@ function setDifficulty(mode) {
 
     if (mode === "easy") {
         hitChance = 0.30;
-        missChance = 0.70;
         selectButton("easyBtn");
     }
     if (mode === "normal") {
         hitChance = 0.55;
-        missChance = 0.45;
         selectButton("normalBtn");
     }
     if (mode === "hard") {
         hitChance = 0.80;
-        missChance = 0.20;
         selectButton("hardBtn");
     }
 
-    // Restore normal ball speed
     ball.speedX = ball.baseSpeedX * Math.sign(ball.speedX);
     ball.speedY = ball.baseSpeedY * Math.sign(ball.speedY);
 }
@@ -144,6 +142,12 @@ function draw() {
     ctx.moveTo(canvas.width/2, 0);
     ctx.lineTo(canvas.width/2, canvas.height);
     ctx.stroke();
+
+    // DRAW TRAIL (metallic purple squares)
+    trail.forEach(t => {
+        ctx.fillStyle = `rgba(180, 0, 255, ${t.life})`;
+        ctx.fillRect(t.x, t.y, ball.size, ball.size);
+    });
 
     // Left paddle
     ctx.fillStyle = "white";
@@ -189,14 +193,13 @@ function update() {
         if (flashTimerRight === 0) rightFlash = null;
     }
 
-    // Left paddle movement (W = up, D = down)
+    // Left paddle movement
     if (keys["w"]) leftPaddle.y -= leftPaddle.speed;
     if (keys["d"]) leftPaddle.y += leftPaddle.speed;
 
-    // Keep left paddle on screen
     leftPaddle.y = Math.max(0, Math.min(canvas.height - paddleHeight, leftPaddle.y));
 
-    // --- AI PADDLE WITH HIT/MISS RATIO ---
+    // AI movement
     let aiCenter = rightPaddle.y + paddleHeight / 2;
 
     if (Math.random() < hitChance) {
@@ -207,19 +210,24 @@ function update() {
         if (ball.y > aiCenter) rightPaddle.y -= rightPaddle.speed;
     }
 
-    // Keep right paddle on screen
     rightPaddle.y = Math.max(0, Math.min(canvas.height - paddleHeight, rightPaddle.y));
 
     // Move ball
     ball.x += ball.speedX;
     ball.y += ball.speedY;
 
+    // ADD TRAIL
+    trail.push({ x: ball.x, y: ball.y, life: 1.0 });
+    if (trail.length > 20) trail.shift();
+    trail.forEach(t => t.life -= 0.05);
+    trail = trail.filter(t => t.life > 0);
+
     // Ball collision with top/bottom
     if (ball.y <= 0 || ball.y + ball.size >= canvas.height) {
         ball.speedY *= -1;
     }
 
-    // Ball collision with left paddle
+    // LEFT paddle hit
     if (ball.x <= leftPaddle.x + paddleWidth &&
         ball.y + ball.size >= leftPaddle.y &&
         ball.y <= leftPaddle.y + paddleHeight) {
@@ -239,7 +247,7 @@ function update() {
         }
     }
 
-    // Ball collision with right paddle
+    // RIGHT paddle hit
     if (ball.x + ball.size >= rightPaddle.x &&
         ball.y + ball.size >= rightPaddle.y &&
         ball.y <= rightPaddle.y + paddleHeight) {
@@ -269,7 +277,7 @@ function update() {
         gameOver = true;
     }
 
-    // Ball goes off screen (reset)
+    // MISSES
     if (ball.x < 0) {
         leftFlash = "red";
         flashTimerLeft = 60;
@@ -279,6 +287,7 @@ function update() {
         flashTimerRight = 60;
     }
 
+    // RESET BALL
     if (ball.x < 0 || ball.x > canvas.width) {
         ball.x = canvas.width/2;
         ball.y = canvas.height/2;
