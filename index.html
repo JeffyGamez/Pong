@@ -29,18 +29,21 @@ let ball = {
     y: canvas.height/2,
     size: 12,
     speedX: 4,
-    speedY: 3,
-    speedIncrease: 0.002
+    speedY: 3
 };
 
 // SCORES
 let leftScore = 0;
 let rightScore = 0;
 
-// INPUT
+// INPUT (iPad‑safe)
 let keys = {};
-window.addEventListener("keydown", e => keys[e.code] = true);
-window.addEventListener("keyup", e => keys[e.code] = false);
+window.addEventListener("keydown", e => {
+    keys[e.key.toLowerCase()] = true;
+});
+window.addEventListener("keyup", e => {
+    keys[e.key.toLowerCase()] = false;
+});
 
 // DRAW EVERYTHING
 function draw() {
@@ -74,8 +77,8 @@ function draw() {
 // UPDATE GAME LOGIC
 function update() {
     // Left paddle movement (W = up, D = down)
-    if (keys["KeyW"]) leftPaddle.y -= leftPaddle.speed;
-    if (keys["KeyD"]) leftPaddle.y += leftPaddle.speed;
+    if (keys["w"]) leftPaddle.y -= leftPaddle.speed;
+    if (keys["d"]) leftPaddle.y += leftPaddle.speed;
 
     // Keep left paddle on screen
     leftPaddle.y = Math.max(0, Math.min(canvas.height - paddleHeight, leftPaddle.y));
@@ -102,7 +105,7 @@ function update() {
         ball.y <= leftPaddle.y + paddleHeight) {
         ball.speedX *= -1;
         leftScore++;
-        ball.speedX *= 1.05; // speed up
+        ball.speedX *= 1.05;
         ball.speedY *= 1.05;
     }
 
@@ -112,7 +115,7 @@ function update() {
         ball.y <= rightPaddle.y + paddleHeight) {
         ball.speedX *= -1;
         rightScore++;
-        ball.speedX *= 1.05; // speed up
+        ball.speedX *= 1.05;
         ball.speedY *= 1.05;
     }
 
