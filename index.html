@@ -39,6 +39,18 @@
     background: yellow;
     color: black;
   }
+
+  /* ⭐ NEW: Floating Speed Indicator */
+  #speedIndicator {
+    position: absolute;
+    left: -120px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 22px;
+    font-weight: bold;
+    color: white;
+    pointer-events: none;
+  }
 </style>
 </head>
 <body>
@@ -48,10 +60,14 @@
   <button id="slowBtn" class="btn">Slow</button>
   <button id="twoPBtn" class="btn">2P</button>
   <button id="pauseBtn" class="btn">Pause</button>
+  <button id="fastBtn" class="btn">Fast</button>
   <button id="resetBtn" class="btn">Reset</button>
 </div>
 
 <div id="gameContainer">
+  <!-- ⭐ NEW: Speed Indicator -->
+  <div id="speedIndicator">Normal</div>
+
   <canvas id="game" width="800" height="500"></canvas>
 </div>
 
@@ -70,15 +86,18 @@ const triSize = 20;
 const paddleWidth = 12;
 const paddleHeight = 80;
 const paddleOffset = 5;
-const paddleSpeed = 6;          // Player speed
-const aiSpeed = paddleSpeed - 1; // AI is now 1 slower (5)
+const paddleSpeed = 6;
+const aiSpeed = paddleSpeed - 1;
 
 // Ball
 const ballRadius = 8;
 const BASE_SPEED = 4;
+const FAST_MODE_SPEED = 6;
 const SLOW_SPEED = 2;
-const FAST_SPEED = 8;
+const FIREBALL_SPEED = 8;
+
 let slowMode = false;
+let fastMode = false;
 let paused = false;
 let twoPlayer = false;
 
@@ -107,7 +126,7 @@ let rightPaddle = {
   targetY: H / 2
 };
 
-// AI frame counter
+// ⭐ AI frame counter (now 20 frames)
 let aiFrameCounter = 0;
 
 // Trail
@@ -121,6 +140,7 @@ let rightFlash = null;
 
 // Buttons
 const slowBtn = document.getElementById('slowBtn');
+const fastBtn = document.getElementById('fastBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const resetBtn = document.getElementById('resetBtn');
 const twoPBtn = document.getElementById('twoPBtn');
@@ -134,7 +154,6 @@ function clampPaddle(p) {
   if (p.y < 0) p.y = 0;
   if (p.y + paddleHeight > H) p.y = H - paddleHeight;
 
-  // Prevent paddles from entering triangles
   if (p.y < triSize) p.y = triSize;
   if (p.y + paddleHeight > H - triSize) p.y = H - triSize - paddleHeight;
 }
@@ -156,18 +175,16 @@ function handleRightPaddleInput() {
   clampPaddle(rightPaddle);
 }
 
-// AI updates every 50 frames when ball is moving toward it
+// ⭐ AI updates every 20 frames when ball is moving toward it
 function updateAI() {
   if (twoPlayer) return;
 
-  // Only update when ball is moving toward AI
   if (ball.vx > 0) {
     aiFrameCounter++;
 
-    if (aiFrameCounter >= 30) {
+    if (aiFrameCounter >= 20) {
       aiFrameCounter = 0;
 
-      // 55% hit, 45% miss
       if (Math.random() < 0.55) {
         rightPaddle.targetY = ball.y - paddleHeight / 2;
       } else {
@@ -177,7 +194,6 @@ function updateAI() {
     }
   }
 
-  // Smooth movement
   if (rightPaddle.targetY < rightPaddle.y) rightPaddle.y -= rightPaddle.vy;
   else if (rightPaddle.targetY > rightPaddle.y) rightPaddle.y += rightPaddle.vy;
 
@@ -194,30 +210,41 @@ function resetBall(toRight) {
   ball.x = midX;
   ball.y = H / 2;
   ball.isPower = false;
-  aiFrameCounter = 0; // reset AI timer
-  ball.speed = slowMode ? SLOW_SPEED : BASE_SPEED;
+  aiFrameCounter = 0;
+
+  updateBallSpeed();
+
   const angle = 0.3;
   ball.vx = (toRight ? 1 : -1) * ball.speed * Math.cos(angle);
   ball.vy = ball.speed * Math.sin(angle);
+
   trail.length = 0;
 }
 
+// ⭐ Fast overrides Slow
 function updateBallSpeed() {
-  if (ball.isPower) ball.speed = FAST_SPEED;
-  else ball.speed = slowMode ? SLOW_SPEED : BASE_SPEED;
+  if (ball.isPower) {
+    ball.speed = FIREBALL_SPEED;
+  } else {
+    if (fastMode) {
+      ball.speed = FAST_MODE_SPEED;
+    } else if (slowMode) {
+      ball.speed = SLOW_SPEED;
+    } else {
+      ball.speed = BASE_SPEED;
+    }
+  }
 
   const mag = Math.hypot(ball.vx, ball.vy) || 1;
   ball.vx = (ball.vx / mag) * ball.speed;
   ball.vy = (ball.vy / mag) * ball.speed;
 }
 
-// FIREBALL CHANCE = 20%
 function maybePowerShot() {
   ball.isPower = Math.random() < 0.2;
   updateBallSpeed();
 }
 
-// Reflect vector v across normal n
 function reflect(vx, vy, nx, ny) {
   const dot = vx * nx + vy * ny;
   return {
@@ -226,7 +253,6 @@ function reflect(vx, vy, nx, ny) {
   };
 }
 
-// Check collision with a line segment
 function checkLineCollision(x1, y1, x2, y2) {
   const A = { x: x1, y: y1 };
   const B = { x: x2, y: y2 };
@@ -261,7 +287,6 @@ function checkLineCollision(x1, y1, x2, y2) {
   }
 }
 
-// Hypotenuse-only triangle collisions
 function checkTriangleBounce() {
   checkLineCollision(0, triSize, triSize, 0);
   checkLineCollision(W - triSize, 0, W, triSize);
@@ -439,8 +464,27 @@ function drawScores() {
   ctx.fillText(rightScore, midX + midX / 2, 10);
 }
 
+function updateSpeedIndicator() {
+  const indicator = document.getElementById('speedIndicator');
+
+  if (ball.isPower) {
+    indicator.textContent = "Super";
+    indicator.style.color = "orange";
+  } else if (fastMode) {
+    indicator.textContent = "Fast";
+    indicator.style.color = "red";
+  } else if (slowMode) {
+    indicator.textContent = "Slow";
+    indicator.style.color = "yellow";
+  } else {
+    indicator.textContent = "Normal";
+    indicator.style.color = "white";
+  }
+}
+
 function loop() {
   update();
+  updateSpeedIndicator(); // ⭐ NEW
   drawArena();
   drawTrail();
   drawPaddles();
@@ -453,6 +497,12 @@ function loop() {
 slowBtn.onclick = () => {
   slowMode = !slowMode;
   slowBtn.classList.toggle('active', slowMode);
+  updateBallSpeed();
+};
+
+fastBtn.onclick = () => {
+  fastMode = !fastMode;
+  fastBtn.classList.toggle('active', fastMode);
   updateBallSpeed();
 };
 
