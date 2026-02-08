@@ -104,12 +104,11 @@ let rightPaddle = {
   x: W - paddleOffset - paddleWidth,
   y: H / 2 - paddleHeight / 2,
   vy: aiSpeed,
-  targetY: H / 2,
-  willHit: true
+  targetY: H / 2
 };
 
-// AI lock to prevent jitter
-let aiLocked = false;
+// AI frame counter
+let aiFrameCounter = 0;
 
 // Trail
 const trail = [];
@@ -157,24 +156,24 @@ function handleRightPaddleInput() {
   clampPaddle(rightPaddle);
 }
 
-// AI: 55% hit, 45% miss, no jitter, unlocks correctly
+// AI updates every 50 frames when ball is moving toward it
 function updateAI() {
   if (twoPlayer) return;
 
-  // Unlock when ball stops coming toward AI
-  if (ball.vx <= 0) {
-    aiLocked = false;
-  }
+  // Only update when ball is moving toward AI
+  if (ball.vx > 0) {
+    aiFrameCounter++;
 
-  // Choose ONE target per volley
-  if (!aiLocked && ball.vx > 0 && ball.x > midX) {
-    aiLocked = true;
+    if (aiFrameCounter >= 50) {
+      aiFrameCounter = 0;
 
-    if (Math.random() < 0.55) {
-      rightPaddle.targetY = ball.y - paddleHeight / 2;
-    } else {
-      const offset = (Math.random() * 80 - 40);
-      rightPaddle.targetY = ball.y - paddleHeight / 2 + offset;
+      // 55% hit, 45% miss
+      if (Math.random() < 0.55) {
+        rightPaddle.targetY = ball.y - paddleHeight / 2;
+      } else {
+        const offset = (Math.random() * 80 - 40);
+        rightPaddle.targetY = ball.y - paddleHeight / 2 + offset;
+      }
     }
   }
 
@@ -195,7 +194,7 @@ function resetBall(toRight) {
   ball.x = midX;
   ball.y = H / 2;
   ball.isPower = false;
-  aiLocked = false; // reset AI lock
+  aiFrameCounter = 0; // reset AI timer
   ball.speed = slowMode ? SLOW_SPEED : BASE_SPEED;
   const angle = 0.3;
   ball.vx = (toRight ? 1 : -1) * ball.speed * Math.cos(angle);
@@ -305,7 +304,7 @@ function update() {
   if (rectCircleCollide(leftPaddle.x, leftPaddle.y, paddleWidth, paddleHeight,
                         ball.x, ball.y, ballRadius)) {
 
-    aiLocked = false;
+    aiFrameCounter = 0;
 
     ball.x = leftPaddle.x + paddleWidth + ballRadius;
     ball.vx = Math.abs(ball.vx);
@@ -319,7 +318,7 @@ function update() {
   if (rectCircleCollide(rightPaddle.x, rightPaddle.y, paddleWidth, paddleHeight,
                         ball.x, ball.y, ballRadius)) {
 
-    aiLocked = false;
+    aiFrameCounter = 0;
 
     ball.x = rightPaddle.x - ballRadius;
     ball.vx = -Math.abs(ball.vx);
