@@ -160,14 +160,19 @@ function handleRightPaddleInput() {
   clampPaddle(rightPaddle);
 }
 
-// AI: 55% hit, 45% miss, no jitter
 function updateAI() {
   if (twoPlayer) return;
+
+  // Unlock when ball is no longer coming toward AI
+  if (ball.vx <= 0) {
+    aiLocked = false;
+  }
 
   // Choose ONE target per volley
   if (!aiLocked && ball.vx > 0 && ball.x > midX) {
     aiLocked = true;
 
+    // 55% hit, 45% miss
     if (Math.random() < 0.55) {
       rightPaddle.targetY = ball.y - paddleHeight / 2;
     } else {
