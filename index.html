@@ -107,6 +107,9 @@ let rightPaddle = {
   willHit: true
 };
 
+// AI lock to prevent jitter
+let aiLocked = false;
+
 // Trail
 const trail = [];
 const TRAIL_MAX_POINTS = 30;
@@ -130,52 +133,53 @@ window.addEventListener('keyup', e => keys[e.key] = false);
 function clampPaddle(p) {
   if (p.y < 0) p.y = 0;
   if (p.y + paddleHeight > H) p.y = H - paddleHeight;
+
+  // Prevent paddles from entering triangles
+  if (p === leftPaddle) {
+    if (p.y < triSize) p.y = triSize;
+    if (p.y + paddleHeight > H - triSize) p.y = H - triSize - paddleHeight;
+  }
+  if (p === rightPaddle) {
+    if (p.y < triSize) p.y = triSize;
+    if (p.y + paddleHeight > H - triSize) p.y = H - triSize - paddleHeight;
+  }
 }
 
 // LEFT PADDLE: W = up, D = down
 function handleLeftPaddleInput() {
-  if (keys['w'] || keys['W']) {
-    leftPaddle.y -= leftPaddle.vy;
-  }
-  if (keys['d'] || keys['D']) {
-    leftPaddle.y += leftPaddle.vy;
-  }
+  if (keys['w'] || keys['W']) leftPaddle.y -= leftPaddle.vy;
+  if (keys['d'] || keys['D']) leftPaddle.y += leftPaddle.vy;
   clampPaddle(leftPaddle);
 }
 
 // RIGHT PADDLE: Arrow keys ONLY when 2P mode is active
 function handleRightPaddleInput() {
   if (!twoPlayer) return;
-
-  if (keys['ArrowUp']) {
-    rightPaddle.y -= rightPaddle.vy;
-  }
-  if (keys['ArrowDown']) {
-    rightPaddle.y += rightPaddle.vy;
-  }
+  if (keys['ArrowUp']) rightPaddle.y -= rightPaddle.vy;
+  if (keys['ArrowDown']) rightPaddle.y += rightPaddle.vy;
   clampPaddle(rightPaddle);
 }
 
-// AI: 60% hit, 40% miss
+// AI: 55% hit, 45% miss, no jitter
 function updateAI() {
   if (twoPlayer) return;
 
-  if (ball.vx > 0 && ball.x > midX - 10) {
-    if (Math.random() < 0.6) {
-      rightPaddle.willHit = true;
+  // Choose ONE target per volley
+  if (!aiLocked && ball.vx > 0 && ball.x > midX) {
+    aiLocked = true;
+
+    if (Math.random() < 0.55) {
       rightPaddle.targetY = ball.y - paddleHeight / 2;
     } else {
-      rightPaddle.willHit = false;
       const offset = (Math.random() * 80 - 40);
       rightPaddle.targetY = ball.y - paddleHeight / 2 + offset;
     }
   }
 
-  if (rightPaddle.targetY < rightPaddle.y) {
-    rightPaddle.y -= rightPaddle.vy;
-  } else if (rightPaddle.targetY > rightPaddle.y) {
-    rightPaddle.y += rightPaddle.vy;
-  }
+  // Smooth movement
+  if (rightPaddle.targetY < rightPaddle.y) rightPaddle.y -= rightPaddle.vy;
+  else if (rightPaddle.targetY > rightPaddle.y) rightPaddle.y += rightPaddle.vy;
+
   clampPaddle(rightPaddle);
 }
 
@@ -189,6 +193,7 @@ function resetBall(toRight) {
   ball.x = midX;
   ball.y = H / 2;
   ball.isPower = false;
+  aiLocked = false; // reset AI lock
   ball.speed = slowMode ? SLOW_SPEED : BASE_SPEED;
   const angle = 0.3;
   ball.vx = (toRight ? 1 : -1) * ball.speed * Math.cos(angle);
@@ -257,16 +262,9 @@ function checkLineCollision(x1, y1, x2, y2) {
 
 // Hypotenuse-only triangle collisions
 function checkTriangleBounce() {
-  // Top-left hypotenuse (slopes away from center)
   checkLineCollision(0, triSize, triSize, 0);
-
-  // Top-right hypotenuse
   checkLineCollision(W - triSize, 0, W, triSize);
-
-  // Bottom-left hypotenuse
   checkLineCollision(0, H - triSize, triSize, H);
-
-  // Bottom-right hypotenuse
   checkLineCollision(W - triSize, H, W, H - triSize);
 }
 
@@ -304,6 +302,9 @@ function update() {
 
   if (rectCircleCollide(leftPaddle.x, leftPaddle.y, paddleWidth, paddleHeight,
                         ball.x, ball.y, ballRadius)) {
+
+    aiLocked = false;
+
     ball.x = leftPaddle.x + paddleWidth + ballRadius;
     ball.vx = Math.abs(ball.vx);
 
@@ -315,6 +316,9 @@ function update() {
 
   if (rectCircleCollide(rightPaddle.x, rightPaddle.y, paddleWidth, paddleHeight,
                         ball.x, ball.y, ballRadius)) {
+
+    aiLocked = false;
+
     ball.x = rightPaddle.x - ballRadius;
     ball.vx = -Math.abs(ball.vx);
 
@@ -369,28 +373,24 @@ function drawArena() {
 
   ctx.fillStyle = 'white';
 
-  // Top-left
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.lineTo(triSize, 0);
   ctx.lineTo(0, triSize);
   ctx.fill();
 
-  // Top-right
   ctx.beginPath();
   ctx.moveTo(W, 0);
   ctx.lineTo(W - triSize, 0);
   ctx.lineTo(W, triSize);
   ctx.fill();
 
-  // Bottom-left
   ctx.beginPath();
   ctx.moveTo(0, H);
   ctx.lineTo(triSize, H);
   ctx.lineTo(0, H - triSize);
   ctx.fill();
 
-  // Bottom-right
   ctx.beginPath();
   ctx.moveTo(W, H);
   ctx.lineTo(W - triSize, H);
