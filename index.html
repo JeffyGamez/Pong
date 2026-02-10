@@ -210,7 +210,7 @@ function updateAI() {
     if (aiFrameCounter >= 20) {
       aiFrameCounter = 0;
 
-      if (Math.random() < 0.55) {
+      if (Math.random() < 0.48) {
         rightPaddle.targetY = ball.y - paddleHeight / 2;
       } else {
         rightPaddle.targetY = ball.y - paddleHeight / 2 + (Math.random() * 80 - 40);
